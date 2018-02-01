@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Stack Web Viewer</title>
+    <meta name="author" content="Lisa Leonhartsberger">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.10/handlebars.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+        crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+        crossorigin="anonymous">
+    <style>
+        .pt1 {
+            padding-top: 1em;
+        }
+    </style>
+    <script id="post-template" type="text/x-handlebars-template">
+        <div class="">
+            <p># Questions: {{count}}</p>
+            <p># Questions with possible answers: {{count_hasanswers}}</p>
+            <p># Answered Questions: {{count_answered}} <br/> WITH selected answer: {{count_selectedanswers}} <br/> WITHOUT
+                selected answer: {{count_notselectedanswers}}</p>
+            <p># Unanswered Questions: {{count_unanswered}}</p>
+            <nav aria-label="Page navigation">
+                <ul class="pagination">
+                    <li>
+                        <a id="prev" href="#" onclick="paging(this)" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {{#each pages}}
+                    <li class="{{class}}"><a id="{{inc @index}}" href="#" onclick="paging(this)">{{inc @index}}</a></li>
+                    {{/each}}
+                    <li>
+                        <a id="next" href="#" onclick="paging(this)" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="btn btn-info" onclick=toggleAccordion()>Toggle</div>
+            <div class="row">{{#each posts}}{{id}},{{/each}}</div>
+            <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+                {{#each posts}}
+                <div class="row pt1">
+                    <div>ID: {{id}}</div>
+                    <div class="">Framework-Tags: {{query_tags}} / SO-Tags: {{data.tags}}</div>
+                    <div class>Create: {{date data.creation_date}} / Last Activity: {{date data.last_activity_date}}</div>
+                    <div>Score: {{data.score}} / Views: {{data.view_count}} / Owner: {{data.owner.display_name}}</div>
+                    <div>Answered: {{data.is_answered}} / Link: <a href="{{data.link}}" target="_blank">StackOverflow</a></div>
+                    <div class=" panel panel-primary">
+                        <div id="head_{{@index}}" class="panel-heading">
+                            <h3 class="panel-title">
+                                <a role="button" data-toggle="collapse" data-parent="#accordion" href="#qu_body_{{@index}}" aria-expanded="true" aria-controls="qu_body_{{@index}}">
+                                    {{{data.title}}} 
+                                </a>
+                            </h3>
+                        </div>
+                        <div id="qu_body_{{@index}}" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="head_{{@index}}">
+                            <div class="panel-body">
+
+                                <div>{{{data.body}}}</div>
+                            </div>
+                        </div>
+                        <div class="panel panel-info">
+                            <div id="comment_head_{{@index}}" class="panel-heading">
+                                <h4 class="panel-title">
+                                    <a role="button" data-toggle="collapse" data-parent="#accordion" href="#qu_comments_{{@index}}" aria-expanded="true" aria-controls="qu_comments_{{@index}}">
+                                        Comments - count: {{data.comment_count}}
+                                    </a>
+                                </h4>
+                            </div>
+                            <div id="qu_comments_{{@index}}" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="comment_head_{{@index}}">
+                                {{#each data.comments}}
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        <div>ID: {{comment_id}} / Score: {{score}} / Date: {{date creation_date}} / Owner: {{owner.user_id}} - {{owner.display_name}} </div>
+                                    </div>
+                                    <div class="panel-body">{{{body}}}</div>
+                                </div>
+                                {{/each}}
+                            </div>
+                        </div>
+                        <div class="panel panel-info">
+                            <div id="answer_head_{{@index}}" class="panel-heading">
+                                <h4 class="panel-title">
+                                    <a role="button" data-toggle="collapse" data-parent="#accordion" href="#qu_answers_{{@index}}" aria-expanded="true" aria-controls="qu_answers_{{@index}}">
+                                        Answers - count: {{data.answer_count}} accepted: {{data.accepted_answer_id}}
+                                    </a>
+                                </h4>
+                            </div>
+                            <div id="qu_answers_{{@index}}" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="answer_head_{{@index}}">
+                                {{#each data.answers}} {{#ifeq answer_id ../data.accepted_answer_id}}
+                                <div class="panel panel-success">{{else}}
+                                    <div class="panel panel-info">{{/ifeq}}
+                                        <div class="panel-heading">
+                                            <div>ID: {{answer_id}} / Score: {{score}} / Date: {{date creation_date}} / Owner: {{owner.user_id}} - {{owner.display_name}}</div>
+                                        </div>
+                                        <div class="panel-body">{{{body}}}</div>
+                                        <div class="panel-heading">Answer Comments</div>
+                                        {{#each comments}}
+                                        <div class="panel panel-warning">
+                                            <div class="panel-heading">ID: {{comment_id}} / Score: {{score}} / Date: {{date creation_date}} / Owner: {{owner.user_id}} - {{owner.display_name}} </div>
+                                            <div class="panel-body">{{{body}}}</div>
+                                        </div>
+                                        {{/each}}
+                                    </div>
+                                    {{/each}}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination">
+                    <li>
+                        <a id="prev" href="#" onclick="paging(this)" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {{#each pages}}
+                    <li class="{{class}}"><a id="{{inc @index}}" href="#" onclick="paging(this)">{{inc @index}}</a></li>
+                    {{/each}}
+                    <li>
+                        <a id="next" href="#" onclick="paging(this)" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </script>
+
+    <script>
+        var http = function (path, method, headers, data, callback) {
+            var cb = callback;
+            var reqBody = null;
+            headers = headers || {};
+
+            var options = {
+                host: '127.0.0.1',
+                path: path.indexOf('/') === 0 ? path : '/' + path,
+                port: 9001,
+                method: method || 'GET',
+                headers: {}
+            };
+
+            if (options.method === 'GET') {
+                options.path += '?' + encodeURI(data);
+            } else if (options.method === 'POST') {
+                reqBody = data ? JSON.stringify(data) : null;
+                options.headers['Content-Length'] = Buffer.byteLength(reqBody);
+            }
+
+            options.headers['Accept'] = headers.accept || 'application/json';
+            options.headers['Content-Type'] = headers.contentType || 'application/json';
+
+            var req = new XMLHttpRequest();
+            req.open(options.method, 'http://' + options.host + ':' + options.port + options.path, true);
+            req.timeout = 120000;
+            for (var k in options.headers) {
+                req.setRequestHeader(k, options.headers[k]);
+            }
+
+            req.ontimeout = function (err) {
+                if (typeof cb === 'function') {
+                    cb(err);
+                    return;
+                };
+            };
+
+            req.onload = function (e) {
+                if (req.readyState === 4) {
+                    var data = req.responseText;
+                    if (data.indexOf("{") === 0) {
+                        data = JSON.parse(data);
+                    }
+
+                    var err = null;
+                    if (req.status !== 200 && req.status !== 304) {
+                        //error on application level - http error codes
+                        err = {
+                            type: "xhrLoad",
+                            status: req.status,
+                            message: req.statusText
+                        };
+                    }
+                    if (typeof cb === 'function') {
+                        cb(err, data);
+                        return;
+                    }
+                    return err ? err : data;
+                }
+            };
+
+            req.onabort = function (e) {
+                console.log('abort');
+            };
+
+            req.onerror = function (e) {
+                // errror on network level
+                if (req.readyState === 4) {
+                    if (req.status === 0) {
+                        var err = {
+                            type: "xhrError",
+                            status: 999,
+                            message: req.statusText
+                        };
+
+                        if (typeof cb === 'function') {
+                            cb(err);
+                            return;
+                        }
+                        return err;
+                    }
+                }
+            };
+
+            req.send(reqBody);
+        };
+
+        Handlebars.registerHelper("inc", function (value, options) {
+            return parseInt(value) + 1;
+        });
+
+        Handlebars.registerHelper('date', function (value, options) {
+            return value ? new Date(value * 1000).toLocaleString("de-AT") : null;
+        });
+
+        Handlebars.registerHelper('ifeq', function (a, b, options) {
+            if (a === b) {
+                return options.fn(this);
+            }
+            return options.inverse(this);
+        });
+
+        var page_range = 10;
+        var cur = {};
+        var source = document.getElementById('post-template').innerHTML;
+        var post_template = Handlebars.compile(source);
+
+        var render_posts = function (page) {
+            if (page < 1 || page > cur.pages) {
+                return;
+            }
+            page = page - 1;
+            var start = page_range * page;
+            var end = (start + page_range) < cur.posts.length ? start + page_range : cur.posts.length;
+            cur.pages = cur.posts ? Math.ceil(cur.posts.length / page_range) : 1;
+            cur.page = page + 1;
+            var tmpPages = new Array(cur.pages).fill({
+                class: ""
+            }, 0, cur.pages);
+            tmpPages[cur.page - 1] = {
+                class: "active"
+            };
+            var d = {
+                posts: cur.posts ? cur.posts.slice(start, end) : [],
+                count: cur.posts.length,
+                pages: tmpPages,
+                count_answered: 0,
+                count_selectedanswers: 0,
+                count_hasanswers: 0
+            };
+            cur.posts.forEach(function (p) {
+                d.count_answered += p.data.is_answered ? 1 : 0;
+                d.count_selectedanswers += p.data.accepted_answer_id ? 1 : 0;
+                d.count_hasanswers += p.data.answer_count > 0 ? 1 : 0;
+            });
+            d.count_unanswered = cur.posts.length - d.count_answered;
+            d.count_notselectedanswers = d.count_answered - d.count_selectedanswers;
+            var html = post_template(d);
+
+            document.getElementById('content').innerHTML = html;
+        };
+
+        var clear_content = function () {
+            cur = {};
+            document.getElementById('content').innerHTML = "";
+        };
+
+
+        var search_posts = function () {
+            clear_content();
+
+            var keys = document.getElementById('_search_posts').value;
+            var tags = document.getElementById('_search_tags').value;
+            var nottags = document.getElementById('_exclude_tags').value || "";
+            http('posts', 'GET', null, "keys=" + keys + "&includedtags=" + tags + "&excludedtags=" + nottags,
+                function (err, body) {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+
+                    if (body) {
+                        if (body.ok && body.rows) {
+                            cur.posts = body.rows;
+                            render_posts(1);
+                        }
+                    }
+                });
+        };
+
+        var search_post_id = function () {
+            clear_content();
+
+            var id = document.getElementById('_search_post_id').value;
+            var text = document.getElementById('_search_post_id_text').value || "";
+            var nottext = document.getElementById('_search_post_id_nottext').value || "";
+            var order = document.getElementById('_search_post_id_order').value || "";
+
+            if(id) {
+                id = id.trim();
+                http('posts/' + id, 'GET', null, "order=" + order + "&text=" + text + "&nottext=" + nottext,
+                function (err, body) {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+
+                    if (body) {
+                        if (body.ok && body.rows) {
+                            cur.posts = body.rows;
+                            render_posts(1);
+                        }
+                    }
+                });
+            }
+        };
+
+        var search_topic_id = function(framework) {
+            clear_content();
+            var topic = document.getElementById('_search_' + framework + '_topic_id').value;
+            var text = document.getElementById('_search_' + framework + '_topic_text').value;
+            var nottext = document.getElementById('_search_' + framework + '_topic_not_text').value || "";
+            var order = document.getElementById('_search_' + framework + '_topic_order').value || "";
+            if(topic) { 
+                http('topic/' + framework + '/' + topic, 'GET', null, "text=" + text + "&order=" + order + "&nottext=" + nottext,
+                function (err, body) {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+
+                    if (body) {
+                        if (body.ok && body.rows) {
+                            cur.posts = body.rows;
+                            render_posts(1);
+                        }
+                    }
+                });
+            }
+        };
+
+        var paging = function (elem) {
+            switch (elem.id) {
+                case 'next':
+                    render_posts(cur.page + 1);
+                    break;
+                case 'prev':
+                    render_posts(cur.page - 1);
+                    break;
+                default:
+                    render_posts(elem.id);
+                    break;
+            }
+        };
+
+        var toggleAccordion = function () {
+            $('.panel-collapse').collapse('toggle');
+        };
+    </script>
+</head>
+
+<body class="container">
+    <h1>Stack Overflow Data Analysis</h1>
+    <h2>Text Search</h2>
+    <form class="form-horizontal">
+        <div class="form-group">
+            <label for="_search_posts" class="col-sm-2 control-label">Search Terms</label>
+            <div class="col-sm-10">
+                <input type="text" class="form-control" id="_search_posts" placeholder="ssl certificates">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="_search_posts" class="col-sm-2 control-label">Included Tags</label>
+            <div class="col-sm-10">
+                <input type="text" class="form-control" id="_search_tags" placeholder="%cordova%,%apache-cordova%">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="_search_posts" class="col-sm-2 control-label">Excluded Tags</label>
+            <div class="col-sm-10">
+                <input type="text" class="form-control" id="_exclude_tags" placeholder="%reactjs%,%react-native%">
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="col-sm-offset-2 col-sm-10">
+                <div class="btn btn-primary" onclick=search_posts()>Search</div>
+            </div>
+        </div>
+    </form>
+    <h2>ID Search</h2>
+    <form class="form-horizontal">
+        <div class="form-group">
+            <label for="_search_post_id" class="col-sm-2 control-label">Question ID</label>
+            <div class="col-sm-10">
+                <input type="text" class="form-control" id="_search_post_id" placeholder="id">
+                <input type="text" class="form-control" id="_search_post_id_text" placeholder="include text">
+                <input type="text" class="form-control" id="_search_post_id_nottext" placeholder="not text">
+                <input type="text" class="form-control" id="_search_post_id_order" placeholder="view-desc">
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="col-sm-offset-2 col-sm-10">
+                <div class="btn btn-primary" onclick=search_post_id()>Search</div>
+            </div>
+        </div>
+    </form>
+    <div class="row">
+        <div class="col-sm-4">
+            <h2>Cordova Topic Search</h2>
+            <form class="form-horizontal">
+                <div class="form-group">
+                    <label for="_search_cordova_topic_id" class="col-sm-2 control-label">Topic Numbers</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="_search_cordova_topic_id" placeholder="0,1,2">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="_search_cordova_topic_text" class="col-sm-2 control-label">Text</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="_search_cordova_topic_text" placeholder="include text">
+                        <input type="text" class="form-control" id="_search_cordova_topic_not_text" placeholder="not text">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="_search_cordova_topic_order" class="col-sm-2 control-label">Order</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="_search_cordova_topic_order" placeholder="view-desc">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-sm-offset-2 col-sm-10">
+                        <div class="btn btn-primary" onclick=search_topic_id("cordova")>Search</div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="col-sm-4">
+            <h2>Xamarin Topic Search</h2>
+            <form class="form-horizontal">
+                <div class="form-group">
+                    <label for="_search_xamarin_topic_id" class="col-sm-2 control-label">Topic Numbers</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="_search_xamarin_topic_id" placeholder="0,1,2">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="_search_xamarin_topic_text" class="col-sm-2 control-label">Text</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="_search_xamarin_topic_text" placeholder="include text">
+                        <input type="text" class="form-control" id="_search_xamarin_topic_not_text" placeholder="not text">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="_search_xamarin_topic_order" class="col-sm-2 control-label">Order</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="_search_xamarin_topic_order" placeholder="view-desc">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-sm-offset-2 col-sm-10">
+                        <div class="btn btn-primary" onclick=search_topic_id("xamarin")>Search</div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="col-sm-4">
+            <h2>React-Native Topic Search</h2>
+            <form class="form-horizontal">
+                <div class="form-group">
+                    <label for="_search_react-native_topic_id" class="col-sm-2 control-label">Topic Numbers</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="_search_react-native_topic_id" placeholder="0,1,2">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="_search_react-native_topic_text" class="col-sm-2 control-label">Text</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="_search_react-native_topic_text" placeholder="include text">
+                        <input type="text" class="form-control" id="_search_react-native_topic_not_text" placeholder="not text">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="_search_react-native_topic_order" class="col-sm-2 control-label">Order</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="_search_react-native_topic_order" placeholder="view-desc">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-sm-offset-2 col-sm-10">
+                        <div class="btn btn-primary" onclick=search_topic_id("react-native")>Search</div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <h2>Results</h2>
+    <div id="content"></div>
+</body>
+
+</html>
